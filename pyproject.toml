@@ -1,11 +1,11 @@
 [tool.poetry]
-name = "latch-python-config"
-version = "0.1.1"
+name = "latch-config"
+version = "0.1.0"
 description = "Shared config for latch python backend services"
 authors = ["Max Smolin <max@latch.bio>"]
 license = "CC0 1.0"
 readme = "README.md"
-packages = [{include = "latch_python_config"}]
+packages = [{include = "latch_config"}]
 
 [tool.poetry.dependencies]
 python = "^3.11"

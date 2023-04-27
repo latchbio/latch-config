@@ -48,18 +48,9 @@ class LoggingMode(str, Enum):
 
 
 @dataclass(frozen=True)
-class AuthConfig:
-    audience: str
-    self_signed_jwk: str
-    allow_spoofing: bool = False
-
-
-@dataclass(frozen=True)
 class Config:
     database: DatabaseConfig
     datadog: DatadogConfig
-    auth: AuthConfig
-    auto_reload: bool = False
     logging_mode: LoggingMode = LoggingMode.console_json
 
 
@@ -93,6 +84,3 @@ def read_config(x: type[T], env_prefix: str = "") -> T:
         res[f.name] = val
 
     return x(**res)
-
-
-config = read_config(Config)
