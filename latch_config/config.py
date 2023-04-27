@@ -84,3 +84,6 @@ def read_config(x: type[T], env_prefix: str = "") -> T:
         res[f.name] = val
 
     return x(**res)
+
+
+config = read_config(Config)
