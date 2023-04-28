@@ -73,7 +73,11 @@ def read_config(x: type[T], env_prefix: str = "") -> T:
 
             env_val = os.environ.get(env_name)
             if env_val is not None:
-                val = typ(env_val)
+                parser = f.metadata.get("parser")
+                if parser is not None:
+                    val = parser(env_val)
+                else:
+                    val = typ(env_val)
 
         if val is None:
             if f.default != MISSING:
