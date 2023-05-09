@@ -23,6 +23,33 @@ target-version = ["py311"]
 [tool.isort]
 profile = "black"
 
+[tool.ruff]
+pydocstyle = { convention = "google" }
+extend-select = ["W", "D", "U", "N", "C", "B", "A", "T", "Q", "M"]
+extend-ignore = [
+  "A002",
+  "A003",
+
+  "E402",
+  "E501",
+  "E741",
+
+  "C408",
+  "C901",
+
+  "T201",
+
+  "D415",
+
+  "D100",
+  "D101",
+  "D102",
+  "D103",
+  "D104",
+  "D105",
+  "D107",
+]
+
 [tool.pyright]
 reportUnknownArgumentType = "none"
 reportUnknownLambdaType = "none"
