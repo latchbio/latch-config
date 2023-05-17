@@ -18,7 +18,7 @@ class DatabaseTxRetriesConfig:
 
 
 @dataclass(frozen=True)
-class DatabaseConfig:
+class PostgresConnectionConfig:
     host: str
     password: str
 
@@ -36,22 +36,13 @@ class DatabaseConfig:
 class DatadogConfig:
     service_version: str = field(metadata=dict(env_name_override="DD_VERSION"))
     deployment_environment: str = field(metadata=dict(env_name_override="DD_ENV"))
-    service_name: str = field(
-        default="nucleus_data", metadata=dict(env_name_override="DD_SERVICE")
-    )
+    service_name: str = field(metadata=dict(env_name_override="DD_SERVICE"))
 
 
 class LoggingMode(str, Enum):
     console = "console"
     console_json = "console_json"
     file_json = "file_json"
-
-
-@dataclass(frozen=True)
-class Config:
-    database: DatabaseConfig
-    datadog: DatadogConfig
-    logging_mode: LoggingMode = LoggingMode.console_json
 
 
 T = TypeVar("T")

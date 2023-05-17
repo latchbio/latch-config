@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "latch-config"
-version = "0.1.5"
+version = "0.1.6"
 description = "Shared config for latch python backend services"
 authors = ["Max Smolin <max@latch.bio>"]
 license = "CC0 1.0"
