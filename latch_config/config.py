@@ -1,7 +1,7 @@
 import os
 from dataclasses import MISSING, dataclass, field, fields, is_dataclass
 from enum import Enum
-from typing import Optional, TypeVar
+from typing import TypeVar
 
 
 @dataclass(frozen=True)
@@ -38,12 +38,8 @@ class DatadogConfig:
     deployment_environment: str = field(metadata=dict(env_name_override="DD_ENV"))
     service_name: str = field(metadata=dict(env_name_override="DD_SERVICE"))
 
-    api_key: Optional[str] = field(
-        metadata=dict(env_name_override="DD_API_KEY"), default=None
-    )
-    app_key: Optional[str] = field(
-        metadata=dict(env_name_override="DD_APP_KEY"), default=None
-    )
+    api_key: str = field(metadata=dict(env_name_override="DD_API_KEY"), default="")
+    app_key: str = field(metadata=dict(env_name_override="DD_APP_KEY"), default="")
 
 
 class LoggingMode(str, Enum):
