@@ -1,7 +1,26 @@
 import os
-from dataclasses import MISSING, dataclass, field, fields, is_dataclass
+from dataclasses import (
+    MISSING,
+    Field,
+    dataclass,
+    field,
+    fields,
+    is_dataclass,
+)
 from enum import Enum
-from typing import TypeVar
+from textwrap import indent
+from types import UnionType
+from typing import (
+    Any,
+    ClassVar,
+    Literal,
+    Protocol,
+    Self,
+    TypeVar,
+    Union,
+    get_args,
+    get_origin,
+)
 
 
 @dataclass(frozen=True)
@@ -51,17 +70,92 @@ class LoggingMode(str, Enum):
 T = TypeVar("T")
 
 
-def read_config(x: type[T], env_prefix: str = "") -> T:
+class _IsDataclass(Protocol):
+    __dataclass_fields__: ClassVar[dict[str, Field]]
+
+
+DC = TypeVar("DC", bound=_IsDataclass)
+
+
+class NoValue: ...
+
+
+class NestyError(Exception):
+    def __init__(self, msg: str, children: list[Self] | None = None):
+        self.msg = msg
+        self.children = children
+
+    def __str__(self):
+        if self.children is None:
+            return self.msg
+
+        res: list[str] = [self.msg]
+        for child in self.children:
+            res.append(indent(str(child), " -> "))
+
+        return "\n".join(res)
+
+
+def parse_config_val(t: type[T], v: Any) -> T:
+    if t is type(None):
+        if v is None:
+            return v
+
+        raise NestyError(f"value `{repr(v)}` is not assignable to `{t}`")
+
+    origin, args = get_origin(t), get_args(t)
+
+    if origin is None:
+        try:
+            if not isinstance(v, t):
+                raise TypeError(f"invalid literal `{v}` for primitive type `{t}`")
+
+            return t(v)
+        except Exception as e:
+            raise NestyError(
+                f"value `{repr(v)}` is not assignable to type `{t}`: {e}"
+            ) from e
+
+    if origin in {Union, UnionType}:
+        errors: list[NestyError] = []
+        for arg in args:
+            try:
+                return parse_config_val(arg, v)
+            except NestyError as e:
+                errors.append(e)
+
+        raise NestyError(
+            f"value `{repr(v)}` is not assignable to union type `{t}`", errors
+        )
+
+    if origin is Literal:
+        errors: list[NestyError] = []
+        for arg in args:
+            if v == arg:
+                return v
+            else:
+                errors.append(
+                    NestyError(f"value `{repr(v)}` is not equal to literal `{arg}`")
+                )
+
+        raise NestyError(
+            f"value `{repr(v)}` is not assignable to literal type `{t}`", errors
+        )
+
+    raise NotImplementedError(f"config parsing is not implemented for type {t}")
+
+
+def read_config(x: type[DC], env_prefix: str = "") -> DC:
     res = {}
     for f in fields(x):
-        val = None
+        val = NoValue
 
         typ = f.type
         if is_dataclass(typ):
             val = read_config(typ, env_prefix + f.name + "_")
 
         env_name = ""
-        if val is None:
+        if val is NoValue:
             env_name = env_prefix + f.metadata.get("env", f.name)
             env_name = f.metadata.get("env_name_override", env_name)
 
@@ -71,13 +165,19 @@ def read_config(x: type[T], env_prefix: str = "") -> T:
                 if parser is not None:
                     val = parser(env_val)
                 else:
-                    val = typ(env_val)
+                    val = parse_config_val(typ, env_val)
 
-        if val is None:
+        if val is NoValue:
             if f.default != MISSING:
                 val = f.default
             else:
-                raise RuntimeError(f"missing value for '{f.name}' (${env_name})")
+                try:
+                    # check if typ is optional and allow missing the env var in that case
+                    val = parse_config_val(typ, None)
+                except NestyError as e:
+                    raise RuntimeError(
+                        f"missing value for '{f.name}' (${env_name})"
+                    ) from e
 
         res[f.name] = val
 
