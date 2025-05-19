@@ -77,6 +77,9 @@ class _IsDataclass(Protocol):
 DC = TypeVar("DC", bound=_IsDataclass)
 
 
+class NoValue: ...
+
+
 class NestyError(Exception):
     def __init__(self, msg: str, children: list[Self] | None = None):
         self.msg = msg
@@ -88,7 +91,7 @@ class NestyError(Exception):
 
         res: list[str] = [self.msg]
         for child in self.children:
-            res.extend(indent(str(child), " -> "))
+            res.append(indent(str(child), " -> "))
 
         return "\n".join(res)
 
@@ -98,12 +101,15 @@ def parse_config_val(t: type[T], v: Any) -> T:
         if v is None:
             return v
 
-        raise NestyError(f"value `{repr(v)}` is not assignable to `type(None)`")
+        raise NestyError(f"value `{repr(v)}` is not assignable to `{t}`")
 
     origin, args = get_origin(t), get_args(t)
 
     if origin is None:
         try:
+            if not isinstance(v, t):
+                raise TypeError(f"invalid literal `{v}` for primitive type `{t}`")
+
             return t(v)
         except Exception as e:
             raise NestyError(
@@ -142,14 +148,14 @@ def parse_config_val(t: type[T], v: Any) -> T:
 def read_config(x: type[DC], env_prefix: str = "") -> DC:
     res = {}
     for f in fields(x):
-        val = None
+        val = NoValue
 
         typ = f.type
         if is_dataclass(typ):
             val = read_config(typ, env_prefix + f.name + "_")
 
         env_name = ""
-        if val is None:
+        if val is NoValue:
             env_name = env_prefix + f.metadata.get("env", f.name)
             env_name = f.metadata.get("env_name_override", env_name)
 
@@ -161,11 +167,17 @@ def read_config(x: type[DC], env_prefix: str = "") -> DC:
                 else:
                     val = parse_config_val(typ, env_val)
 
-        if val is None:
+        if val is NoValue:
             if f.default != MISSING:
                 val = f.default
             else:
-                raise RuntimeError(f"missing value for '{f.name}' (${env_name})")
+                try:
+                    # check if typ is optional and allow missing the env var in that case
+                    val = parse_config_val(typ, None)
+                except NestyError as e:
+                    raise RuntimeError(
+                        f"missing value for '{f.name}' (${env_name})"
+                    ) from e
 
         res[f.name] = val
 
